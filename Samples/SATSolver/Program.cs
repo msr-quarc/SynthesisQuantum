@@ -36,6 +36,9 @@ namespace Microsoft.Quantum.Samples.SATSolver
                 var assumptions = xs.Zip(res, (x, v) => v ? x : ctx.MkNot(x)).ToArray();
                 var solver = ctx.MkSolver();
                 Console.WriteLine(solver.Check(assumptions));
+
+                /* report */
+                Console.WriteLine($"SAT solving finished. Used {comp.RequiredAncillae} ancillae qubits.");
             }
         }
 
