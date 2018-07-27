@@ -12,7 +12,7 @@ of Boolean operators is AND, OR, XOR, and IFF.
 
 ## Manifest ##
 
-- [SATSolver.qs](./Shor.qs): Q# implementation of Shor's algorithm.
+- [SATSolver.qs](./Shor.qs): Q# implementation of a SAT solver.
 - [Program.cs](./Program.cs): C# console application to translate the SAT problem into a reversible computation
 - [ReversibleComputation.cs](./ReversibleComputation.cs): C# class that for reversible computations.  The class
   implements a Q# operation and can be passed to a Q# program.
