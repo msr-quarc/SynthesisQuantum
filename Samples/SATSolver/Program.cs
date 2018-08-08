@@ -14,7 +14,7 @@ namespace Microsoft.Quantum.Samples.SATSolver
         {
             var problem = Formulas.MAJeqIFF();
 
-            Console.WriteLine($"Solving SAT formula: {problem}");
+            Console.WriteLine($"Solving SAT formula:              {problem}");
 
             using (var sim = new QuantumSimulator()) {
                 /* translate SAT problem to into a reversible computation */
@@ -22,15 +22,18 @@ namespace Microsoft.Quantum.Samples.SATSolver
 
                 /* solve SAT problem with Q# and print solution */
                 var res = SATSolver.Run(sim, comp, problem.Inputs.Length).Result;
-                Console.WriteLine(String.Join(" ", problem.Inputs.Zip(res, (x, v) => $"{x.ToString()} = {v}")));
+                Console.Write("Solution from quantum SAT solver: ");
+                Console.WriteLine(String.Join(" and ", problem.Inputs.Zip(res, (x, v) => $"{x.ToString()} = {v}")));
 
                 /* verify the solution using a classical SAT solver */
-                Console.WriteLine($"Verify result with SAT solver: {problem.Verify(res.ToArray())}");
+                Console.WriteLine($"Verify with classical SAT solver: {problem.Verify(res.ToArray())}");
 
                 /* report */
-                Console.WriteLine($"SAT solving finished. Used {comp.RequiredAncillae} ancillae qubits.");
+                Console.WriteLine();
+                Console.WriteLine($"Used {comp.GateCount} reversible gates and {comp.RequiredAncillae} ancillae qubits.");
             }
 
+            Console.WriteLine();
             Console.WriteLine("Press Enter to continue...");
             Console.ReadLine();
         }

@@ -63,7 +63,7 @@ namespace Microsoft.Quantum.Samples.SATSolver
         /// <returns>Next free step index holding the result of the computation</returns>
         public int ComputeFalse()
         {
-            _steps.Add((OpCode.FALSE, new List<int>{}));
+            _steps.Add((OpCode.FALSE, new List<int> { }));
             return -_steps.Count;
         }
 
@@ -84,7 +84,7 @@ namespace Microsoft.Quantum.Samples.SATSolver
         /// <returns>Next free step index holding the result of the computation</returns>
         public int ComputeNot(int qubit)
         {
-            _steps.Add((OpCode.NOT, new List<int>{qubit}));
+            _steps.Add((OpCode.NOT, new List<int> { qubit }));
             return -_steps.Count;
         }
 
@@ -129,7 +129,7 @@ namespace Microsoft.Quantum.Samples.SATSolver
         /// <returns>Next free step index holding the result of the computation</returns>
         public int ComputeIff(int qubit1, int qubit2)
         {
-            _steps.Add((OpCode.IFF, new List<int>{qubit1, qubit2}));
+            _steps.Add((OpCode.IFF, new List<int> { qubit1, qubit2 }));
             return -_steps.Count;
         }
 
@@ -158,6 +158,9 @@ namespace Microsoft.Quantum.Samples.SATSolver
                 {
                     /* save qubits for internal use */
                     (_inputs, _output) = args;
+
+                    /* reset gate count */
+                    _gateCount = 0;
 
                     /* allocate possible ancillae qubits */
                     AllocateQubits();
@@ -243,76 +246,89 @@ namespace Microsoft.Quantum.Samples.SATSolver
 
             switch (_steps[stepIndex].Item1)
             {
-                /* empty line */
                 case OpCode.FALSE:
-                {
-                    /* do nothing */    
-                } break;
+                    {
+                        /* do nothing */
+                    } break;
 
-                /* NOT gate */
                 case OpCode.TRUE:
-                {
-                    Factory.Get<X, X>().Body.Invoke(target);
-                } break;
-                
-                /* CNOT gate + NOT */
+                    {
+                        ApplyNOT(target);
+                    } break;
+
                 case OpCode.NOT:
-                {
-                    Factory.Get<CNOT, CNOT>().Body.Invoke((controls[0], target));
-                    Factory.Get<X, X>().Body.Invoke(target);
-                } break;
+                    {
+                        ApplyCNOT(controls[0], target);
+                        ApplyNOT(target);
+                    } break;
 
-                /* Multiple-controlled Toffoli gate */
                 case OpCode.AND:
-                {
-                    var cx = new ControlledOperation<Qubit, QVoid>(Factory.Get<X, X>());
-                    cx.Body.Invoke((controls, target));
-                } break;
+                    {
+                        ApplyToffoli(controls, target);
+                    } break;
 
-                /* Multiple-controlled Toffoli gate with negated controls + NOT on target */
                 case OpCode.OR:
-                {
-                    var xgate = Factory.Get<X, X>();                                    /* X - gate */
-                    var cx = new ControlledOperation<Qubit, QVoid>(xgate);              /* controlled X */
-                    var toeach = Factory.Get<ApplyToEach<Qubit>, ApplyToEach<Qubit>>(); /* apply to each */
-                    toeach.Body.Invoke((xgate, controls));
-                    cx.Body.Invoke((controls, target));
-                    xgate.Body.Invoke(target);
-                    toeach.Body.Invoke((xgate, controls));
-                } break;
+                    {
+                        ApplyToffoli(controls, target, controls, true);
+                    } break;
 
-                /* CNOTs for each input on target */
                 case OpCode.XOR:
-                {
-                    var cnot = Factory.Get<CNOT, CNOT>();
-                    foreach (var qb in controls)
                     {
-                        cnot.Body.Invoke((qb, target));
-                    }
-                } break;
+                        foreach (var qb in controls)
+                        {
+                            ApplyCNOT(qb, target);
+                        }
+                    } break;
 
-                /* CNOTs for each input on target + NOT on target */
                 case OpCode.IFF:
-                {
-                    var cnot = Factory.Get<CNOT, CNOT>();
-                    var xgate = Factory.Get<X, X>();
-                    foreach (var qb in controls)
                     {
-                        cnot.Body.Invoke((qb, target));
-                    }
-                    xgate.Body.Invoke(target);
-                } break;
+                        foreach (var qb in controls)
+                        {
+                            ApplyCNOT(qb, target);
+                        }
+                        ApplyNOT(target);
+                    } break;
 
-                /* CCNOT with second input inverted + NOT on target */
                 case OpCode.IMPLIES:
-                {
-                    var xgate = Factory.Get<X, X>();                       /* X - gate */
-                    var cx = new ControlledOperation<Qubit, QVoid>(xgate); /* controlled X */
-                    xgate.Body.Invoke(controls[1]);
-                    cx.Body.Invoke((controls, target));
-                    xgate.Body.Invoke(controls[1]);
-                    xgate.Body.Invoke(target);
-                } break;
+                    {
+                        ApplyToffoli(controls, target, new QArray<Qubit>{controls[1]}, true);
+                    } break;
+            }
+        }
+
+        private void ApplyNOT(Qubit target)
+        {
+            ApplyToffoli(new QArray<Qubit> { }, target);
+        }
+
+        private void ApplyCNOT(Qubit control, Qubit target)
+        {
+            ApplyToffoli(new QArray<Qubit> { control }, target);
+        }
+
+        private void ApplyToffoli(QArray<Qubit> controls, Qubit target, QArray<Qubit> invertedControls = null, bool invertOutput = false)
+        {
+            var xgate = Factory.Get<X, X>();                                    /* X - gate */
+            var cx = new ControlledOperation<Qubit, QVoid>(xgate);              /* controlled X */
+            var toeach = Factory.Get<ApplyToEach<Qubit>, ApplyToEach<Qubit>>(); /* apply to each */
+
+            if (invertedControls != null)
+            {
+                _gateCount += invertedControls.Count;
+                toeach.Body.Invoke((xgate, invertedControls));
+            }
+            _gateCount++;
+            cx.Body.Invoke((controls, target));
+            if (invertedControls != null)
+            {
+                _gateCount += invertedControls.Count;
+                toeach.Body.Invoke((xgate, invertedControls));
+            }
+
+            if (invertOutput)
+            {
+                _gateCount++;
+                xgate.Body.Invoke(target);
             }
         }
 
@@ -321,11 +337,17 @@ namespace Microsoft.Quantum.Samples.SATSolver
         /// </summary>
         public int RequiredAncillae { get => _steps.Count - 1; }
 
+        /// <summary>
+        /// Returns number of reversible gates in computation (available after execution).
+        /// </summary>
+        public int GateCount { get => _gateCount; }
+
         private enum OpCode { FALSE, TRUE, NOT, AND, OR, XOR, IFF, IMPLIES };
         private List<(OpCode, List<int>)> _steps = new List<(OpCode, List<int>)>();
         private SimulatorBase _simbase;
         private QArray<Qubit> _inputs;
         private Qubit _output;
         private QArray<Qubit> _ancillae;
+        private int _gateCount = 0;
     }
 }
