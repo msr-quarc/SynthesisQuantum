@@ -28,7 +28,7 @@ namespace Microsoft.Quantum.Samples.SATSolver
             var solver = Context.MkSolver();
             solver.Add(Formula);
             var ctx = Context;
-            var assumptions = Inputs.Zip(assignments, (x, v) => v ? x : ctx.MkNot(x)).ToArray();
+            var assumptions = Inputs.Zip(assignments, (x, v) => v ? x : ctx.MkNot(x));
             return solver.Check(assumptions) == Status.SATISFIABLE;
         }
 

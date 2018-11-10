@@ -54,7 +54,7 @@ namespace Microsoft.Quantum.Samples.SATSolver
                     var indexes = e.Args.Select(x => _AddExprRec(x)).ToList();
                     return comp.ComputeXor(indexes);
                 }
-                else if (e.IsIff)
+                else if (e.IsIff || e.IsEq)
                 {
                     return comp.ComputeIff(_AddExprRec(e.Args[0]), _AddExprRec(e.Args[1]));
                 }
