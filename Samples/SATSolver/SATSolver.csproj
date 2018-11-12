@@ -13,5 +13,6 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Quantum.Development.Kit" Version="0.2.1809.701-preview" />
     <PackageReference Include="Microsoft.Z3.x64" Version="4.8.1" />
+    <PackageReference Include="Microsoft.Quantum.Pebbling" Version="0.1.0" />
   </ItemGroup>
 </Project>

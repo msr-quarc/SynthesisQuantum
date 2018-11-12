@@ -3,11 +3,13 @@
 
 
 using Microsoft.Quantum.Canon;
+using Microsoft.Quantum.Pebbling;
 using Microsoft.Quantum.Primitive;
 using Microsoft.Quantum.Simulation.Core;
 using Microsoft.Quantum.Simulation.Simulators;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Microsoft.Quantum.Samples.SATSolver
 {
@@ -57,14 +59,23 @@ namespace Microsoft.Quantum.Samples.SATSolver
             }
         }
 
+        public void CreateInputs(int numInputs)
+        {
+            _graph = new PebbleGraph(numInputs);
+        }
+
         /// <summary>
         /// Computes FALSE
         /// </summary>
         /// <returns>Next free step index holding the result of the computation</returns>
         public int ComputeFalse()
         {
-            _steps.Add((OpCode.FALSE, new List<int> { }));
-            return -_steps.Count;
+            //_steps.Add((OpCode.FALSE, new List<int> { }));
+            //return -_steps.Count;
+
+            var n = _graph.AddNode();
+            _nodeTypes[n] = OpCode.FALSE;
+            return n;
         }
 
         /// <summary>
@@ -73,8 +84,12 @@ namespace Microsoft.Quantum.Samples.SATSolver
         /// <returns>Next free step index holding the result of the computation</returns>
         public int ComputeTrue()
         {
-            _steps.Add((OpCode.TRUE, new List<int> { }));
-            return -_steps.Count;
+            //_steps.Add((OpCode.TRUE, new List<int> { }));
+            //return -_steps.Count;
+
+            var n = _graph.AddNode();
+            _nodeTypes[n] = OpCode.TRUE;
+            return n;
         }
 
         /// <summary>
@@ -84,8 +99,12 @@ namespace Microsoft.Quantum.Samples.SATSolver
         /// <returns>Next free step index holding the result of the computation</returns>
         public int ComputeNot(int qubit)
         {
-            _steps.Add((OpCode.NOT, new List<int> { qubit }));
-            return -_steps.Count;
+            //_steps.Add((OpCode.NOT, new List<int> { qubit }));
+            //return -_steps.Count;
+
+            var n = _graph.AddNode(qubit);
+            _nodeTypes[n] = OpCode.NOT;
+            return n;
         }
 
         /// <summary>
@@ -95,8 +114,12 @@ namespace Microsoft.Quantum.Samples.SATSolver
         /// <returns>Next free step index holding the result of the computation</returns>
         public int ComputeAnd(List<int> qubits)
         {
-            _steps.Add((OpCode.AND, qubits));
-            return -_steps.Count;
+            //_steps.Add((OpCode.AND, qubits));
+            //return -_steps.Count;
+
+            var n = _graph.AddNode(qubits);
+            _nodeTypes[n] = OpCode.AND;
+            return n;
         }
 
         /// <summary>
@@ -106,8 +129,12 @@ namespace Microsoft.Quantum.Samples.SATSolver
         /// <returns>Next free step index holding the result of the computation</returns>
         public int ComputeOr(List<int> qubits)
         {
-            _steps.Add((OpCode.OR, qubits));
-            return -_steps.Count;
+            //_steps.Add((OpCode.OR, qubits));
+            //return -_steps.Count;
+
+            var n = _graph.AddNode(qubits);
+            _nodeTypes[n] = OpCode.OR;
+            return n;
         }
 
         /// <summary>
@@ -117,8 +144,12 @@ namespace Microsoft.Quantum.Samples.SATSolver
         /// <returns>Next free step index holding the result of the computation</returns>
         public int ComputeXor(List<int> qubits)
         {
-            _steps.Add((OpCode.XOR, qubits));
-            return -_steps.Count;
+            //_steps.Add((OpCode.XOR, qubits));
+            //return -_steps.Count;
+
+            var n = _graph.AddNode(qubits);
+            _nodeTypes[n] = OpCode.XOR;
+            return n;
         }
 
         /// <summary>
@@ -129,8 +160,12 @@ namespace Microsoft.Quantum.Samples.SATSolver
         /// <returns>Next free step index holding the result of the computation</returns>
         public int ComputeIff(int qubit1, int qubit2)
         {
-            _steps.Add((OpCode.IFF, new List<int> { qubit1, qubit2 }));
-            return -_steps.Count;
+            //_steps.Add((OpCode.IFF, new List<int> { qubit1, qubit2 }));
+            //return -_steps.Count;
+
+            var n = _graph.AddNode(qubit1, qubit2);
+            _nodeTypes[n] = OpCode.IFF;
+            return n;
         }
 
         /// <summary>
@@ -141,8 +176,12 @@ namespace Microsoft.Quantum.Samples.SATSolver
         /// <returns>Next free step index holding the result of the computation</returns>
         public int ComputeImplies(int qubit1, int qubit2)
         {
-            _steps.Add((OpCode.IMPLIES, new List<int> { qubit1, qubit2 }));
-            return -_steps.Count;
+            //_steps.Add((OpCode.IMPLIES, new List<int> { qubit1, qubit2 }));
+            //return -_steps.Count;
+
+            var n = _graph.AddNode(qubit1, qubit2);
+            _nodeTypes[n] = OpCode.IMPLIES;
+            return n;
         }
 
         /// <summary>
@@ -159,51 +198,36 @@ namespace Microsoft.Quantum.Samples.SATSolver
                     /* save qubits for internal use */
                     (_inputs, _output) = args;
 
+                    /* set the output of the computation graph to the last step */
+                    _graph.Outputs.Clear();
+                    _graph.Outputs.Add(_graph.Size - 1);
+
                     /* reset gate count */
                     _gateCount = 0;
 
-                    /* allocate possible ancillae qubits */
-                    AllocateQubits();
-
-                    /* compute intermediate steps on ancillae + final step on output */
-                    for (int i = 0; i < _steps.Count; ++i)
-                    {
-                        ApplyStep(i);
+                    /* assign nodeToQubit map */
+                    for (var i = 0; i < _graph.NumInputs; ++i) {
+                        _nodeToQubit[i] = _inputs[i];
                     }
 
-                    /* uncompute intermediate steps */
-                    for (int i = _steps.Count - 2; i >= 0; --i)
-                    {
-                        ApplyStep(i);
-                    }
+                    /* find solution */
+                    var solution = PebbleSolver.SolveWithBennett(_graph);
 
-                    /* release ancillae qubits */
-                    ReleaseQubits();
+                    foreach (var op in solution.GetOperations()) {
+                        switch (op.action) {
+                            case PebbleSolution.Action.Compute:
+                                _nodeToQubit[op.index] = _graph.IsOutput(op.index) ? _output : _simbase.QubitManager.Allocate(1).First();
+                                ApplyStep(op.index);
+                            break;
+                            case PebbleSolution.Action.Uncompute:
+                                ApplyStep(op.index);
+                                _simbase.QubitManager.Release(new QArray<Qubit> {_nodeToQubit[op.index]});
+                            break;
+                        }
+                    }
 
                     return QVoid.Instance;
                 };
-            }
-        }
-
-        /// <summary>
-        /// Allocates clean ancillae used to compute intermediate results for the steps.
-        /// </summary>
-        private void AllocateQubits()
-        {
-            if (RequiredAncillae > 0)
-            {
-                _ancillae = _simbase.QubitManager.Allocate(RequiredAncillae);
-            }
-        }
-
-        /// <summary>
-        /// Releases allocated clean ancillae.
-        /// </summary>
-        private void ReleaseQubits()
-        {
-            if (_ancillae != null)
-            {
-                _simbase.QubitManager.Release(_ancillae);
             }
         }
 
@@ -212,39 +236,26 @@ namespace Microsoft.Quantum.Samples.SATSolver
         /// 
         /// This method maps step and input indexes to ancillae qubits, control qubits and target qubits.
         /// </summary>
-        /// <param name="stepIndex">Index of the step</param>
+        /// <param name="node">Index of the step</param>
         /// <returns></returns>
-        private (QArray<Qubit>, Qubit) GetQubits(int stepIndex)
+        private (QArray<Qubit>, Qubit) GetQubits(int node)
         {
             var children = new QArray<Qubit>();
-            foreach (var child in _steps[stepIndex].Item2)
-            {
-                if (child < 0)
-                {
-                    children.Add(_ancillae[-child - 1]);
-                }
-                else
-                {
-                    if (child >= _inputs.Count)
-                    {
-                        throw new ExecutionFailException($"input index out of range in step {stepIndex}");
-                    }
-                    children.Add(_inputs[child]);
-                }
+            foreach (var child in _graph[node].Children) {
+                children.Add(_nodeToQubit[child]);
             }
-            var target = (stepIndex == _steps.Count - 1) ? _output : _ancillae[stepIndex];
-            return (children, target);
+            return (children, _nodeToQubit[node]);
         }
 
         /// <summary>
         /// Applies step.  This function applies the necessary quantum operations to perform a step operation.
         /// </summary>
-        /// <param name="stepIndex">Index of the step</param>
-        private void ApplyStep(int stepIndex)
+        /// <param name="node">Index of the step</param>
+        private void ApplyStep(int node)
         {
-            var (controls, target) = GetQubits(stepIndex);
+            var (controls, target) = GetQubits(node);
 
-            switch (_steps[stepIndex].Item1)
+            switch (_nodeTypes[node])
             {
                 case OpCode.FALSE:
                     {
@@ -335,7 +346,7 @@ namespace Microsoft.Quantum.Samples.SATSolver
         /// <summary>
         /// Returns number of required ancillae.
         /// </summary>
-        public int RequiredAncillae { get => _steps.Count - 1; }
+        public int RequiredAncillae { get => _graph.Size - _graph.NumInputs - 1; }
 
         /// <summary>
         /// Returns number of reversible gates in computation (available after execution).
@@ -343,11 +354,12 @@ namespace Microsoft.Quantum.Samples.SATSolver
         public int GateCount { get => _gateCount; }
 
         private enum OpCode { FALSE, TRUE, NOT, AND, OR, XOR, IFF, IMPLIES };
-        private List<(OpCode, List<int>)> _steps = new List<(OpCode, List<int>)>();
+        private PebbleGraph _graph;
+        private Dictionary<int, OpCode> _nodeTypes = new Dictionary<int, OpCode>();
+        private Dictionary<int, Qubit> _nodeToQubit = new Dictionary<int, Qubit>();
         private SimulatorBase _simbase;
         private QArray<Qubit> _inputs;
         private Qubit _output;
-        private QArray<Qubit> _ancillae;
         private int _gateCount = 0;
     }
 }

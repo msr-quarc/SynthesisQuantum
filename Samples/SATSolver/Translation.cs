@@ -18,6 +18,7 @@ namespace Microsoft.Quantum.Samples.SATSolver
 
             /* reversible computation object */
             var comp = sim.Get<ReversibleComputation, ReversibleComputation>();
+            comp.CreateInputs(problem.Inputs.Length);
 
             /* local recursive function to visit the AST */
             int _AddExprRec(Expr e)
