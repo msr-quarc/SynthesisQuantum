@@ -33,8 +33,8 @@ namespace Microsoft.Quantum.Samples.SATSolver {
                 With(ApplyToEachA(BindA([H; X]), _), MultipleControlledZ, inputs);
 
                 // uncompute ancillae
-                H(qubits[3]);
-                X(qubits[3]);
+                H(qubits[numInputs]);
+                X(qubits[numInputs]);
 
                 set result = MeasureInteger(LittleEndian(inputs));
             }

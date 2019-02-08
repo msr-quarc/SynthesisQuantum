@@ -45,18 +45,31 @@ namespace Microsoft.Quantum.Samples.SATSolver
             var ctx = new Context();
 
             /* create three Boolean variables xs[0], xs[1], xs[2] */
-            var xs = Enumerable.Range(1, 3).Select(i => (BoolExpr)ctx.MkConst($"x{i}", ctx.MkBoolSort())).ToArray();
+            var xs = Enumerable.Range(1, 3).Select(i => ctx.MkBoolConst($"x{i}")).ToArray();
 
             /* create MAJ(xs[0], xs[1], xs[2]) */
-            var maj3 = ctx.MkOr(ctx.MkAnd(xs[0], xs[1]), ctx.MkAnd(xs[0], xs[2]), ctx.MkAnd(xs[1], xs[2]));
+            //var maj3 = (xs[0] | xs[1]) & (xs[0] | xs[2]) & (xs[1] | xs[2]);
+            #region Alternative implementations
+            var maj3 = ctx.MkAnd(xs[0] | xs[1], xs[1] | xs[2], xs[0] | xs[2]);
+            //var maj3 = ctx.MkOr(xs[0] & xs[1], xs[1] & xs[2], xs[0] & xs[2]);
+            #endregion
 
             /* create XOR(xs[0], xs[1], xs[2]) */
-            var xor3 = ctx.MkXor(xs[0], ctx.MkXor(xs[1], xs[2]));
+            var xor3 = xs[0] ^ xs[1] ^ xs[2];
 
             /* compare MAJ with XOR */
             var problem = ctx.MkIff(maj3, xor3);
 
             return new SATProblem(xs, problem, ctx);
+        }
+
+        public static SATProblem InnerProduct(int numVars)
+        {
+            var ctx = new Context();
+            var xs = Enumerable.Range(1, numVars).Select(i => ctx.MkBoolConst($"x{i}"));
+            var ys = Enumerable.Range(1, numVars).Select(i => ctx.MkBoolConst($"y{i}"));
+
+            return new SATProblem(xs.Concat(ys).ToArray(), xs.Zip(ys, (x, y) => x & y).Aggregate(ctx.MkFalse(), (a, r) => a ^ r), ctx);
         }
     }
 }
